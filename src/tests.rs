@@ -23,34 +23,28 @@ fn test_low_bits_of_u64() {
 #[test]
 fn test_read_unsigned() {
     let buf = [2u8];
-    let mut readable = &buf[..];
     assert_eq!(2,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 
     let buf = [127u8];
-    let mut readable = &buf[..];
     assert_eq!(127,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 
     let buf = [CONTINUATION_BIT, 1];
-    let mut readable = &buf[..];
     assert_eq!(128,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 
     let buf = [1u8 | CONTINUATION_BIT, 1];
-    let mut readable = &buf[..];
     assert_eq!(129,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 
     let buf = [2u8 | CONTINUATION_BIT, 1];
-    let mut readable = &buf[..];
     assert_eq!(130,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 
     let buf = [57u8 | CONTINUATION_BIT, 100];
-    let mut readable = &buf[..];
     assert_eq!(12857,
-               read::unsigned(&mut readable).expect("Should read number"));
+               read::unsigned(&buf).expect("Should read number").0);
 }
 
 // Examples from the DWARF 4 standard, section 7.6, figure 23.
@@ -116,7 +110,7 @@ fn test_read_unsigned_not_enough_data() {
     let buf = [CONTINUATION_BIT];
     let mut readable = &buf[..];
     match read::unsigned(&mut readable) {
-        Err(read::Error::IoError(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+        Err(read::Error::NotEnoughData) => {}
         otherwise => panic!("Unexpected: {:?}", otherwise),
     }
 }
@@ -181,9 +175,9 @@ fn dogfood_unsigned() {
             write::unsigned(&mut writable, i).expect("Should write signed number");
         }
 
-        let mut readable = &buf[..];
-        let result = read::unsigned(&mut readable)
-            .expect("Should be able to read it back again");
+        let result = read::unsigned(&buf)
+            .expect("Should be able to read it back again")
+            .0;
         assert_eq!(i, result);
     }
 }
@@ -265,10 +259,9 @@ fn test_read_signed_overflow() {
 #[test]
 fn test_read_multiple() {
     let buf = [2u8 | CONTINUATION_BIT, 1u8, 1u8];
-
-    let mut readable = &buf[..];
-    assert_eq!(read::unsigned(&mut readable).expect("Should read first number"),
-               130u64);
-    assert_eq!(read::unsigned(&mut readable).expect("Should read first number"),
-               1u64);
+    let (val, rest) = read::unsigned(&buf).expect("Should read first number");
+    assert_eq!(val, 130u64);
+    let (val, rest) = read::unsigned(rest).expect("Should read second number");
+    assert_eq!(val, 1u64);
+    assert!(rest.is_empty());
 }

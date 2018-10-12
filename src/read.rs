@@ -13,6 +13,8 @@ pub enum Error {
     IoError(io::Error),
     /// The number being read is larger than can be represented.
     Overflow,
+    /// Not enough input data.
+    NotEnoughData,
 }
 
 impl From<io::Error> for Error {
@@ -34,6 +36,7 @@ impl ::std::error::Error for Error {
         match *self {
             Error::IoError(ref e) => e.description(),
             Error::Overflow => "The number being read is larger than can be represented",
+            Error::NotEnoughData => "Not enough input data",
         }
     }
 
@@ -41,21 +44,25 @@ impl ::std::error::Error for Error {
         match *self {
             Error::IoError(ref e) => Some(e),
             Error::Overflow => None,
+            Error::NotEnoughData => None,
         }
     }
 }
 
 /// Read an unsigned LEB128 number from the given `std::io::Read`able and
 /// return it or an error if reading failed.
-pub fn unsigned<R>(r: &mut R) -> Result<u64, Error>
-    where R: io::Read
-{
+#[inline]
+pub fn unsigned(mut input: &[u8]) -> Result<(u64, &[u8]), Error> {
     let mut result = 0;
     let mut shift = 0;
 
     loop {
-        let mut buf = [0];
-        try!(r.read_exact(&mut buf));
+        if input.is_empty() {
+            return Err(Error::NotEnoughData);
+        }
+
+        let (buf, rest) = input.split_at(1);
+        input = rest;
 
         if shift == 63 && buf[0] != 0x00 && buf[0] != 0x01 {
             return Err(Error::Overflow);
@@ -65,7 +72,7 @@ pub fn unsigned<R>(r: &mut R) -> Result<u64, Error>
         result |= low_bits << shift;
 
         if buf[0] & CONTINUATION_BIT == 0 {
-            return Ok(result);
+            return Ok((result, input));
         }
 
         shift += 7;

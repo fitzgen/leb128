@@ -35,8 +35,7 @@
 //!     leb128::write::unsigned(&mut writable, 98765).expect("Should write number");
 //! }
 //!
-//! let mut readable = &buf[..];
-//! let val = leb128::read::unsigned(&mut readable).expect("Should read number");
+//! let (val, rest) = leb128::read::unsigned(&buf).expect("Should read number");
 //! assert_eq!(val, 98765);
 //! ```
 

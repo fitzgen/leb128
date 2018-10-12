@@ -19,7 +19,8 @@ fn can_round_trip_any_unsigned_int() {
         let mut v = vec![];
         leb128::write::unsigned(&mut v, x)?;
         let y = leb128::read::unsigned(&mut &v[..])
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+            .0;
         Ok(x == y)
     }
     quickcheck::quickcheck(f as fn(u64) -> io::Result<bool>);
