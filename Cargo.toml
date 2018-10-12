@@ -23,3 +23,7 @@ nightly = []
 [[bench]]
 name = "bench"
 harness = false
+
+[profile.bench]
+lto = true
+# debug = true

@@ -49,10 +49,60 @@ impl ::std::error::Error for Error {
     }
 }
 
+#[inline]
+fn num_with_continuation_bit(x: u64) -> u32 {
+    let y = x | 0x7f7f7f7f7f7f7f7f;
+    let y = !y;
+    y.trailing_zeros() >> 3
+}
+
+/// TODO
+#[inline]
+pub fn unsigned(input: &[u8]) -> Result<(u64, &[u8]), Error> {
+    use std::arch::x86_64;
+
+    if input.len() < 8 {
+        return unsigned_slow(input);
+    }
+
+    let mut word: u64 = 0;
+    {
+        let word: &mut [u8; 8] = unsafe { &mut *(&mut word as *mut u64 as *mut [u8; 8]) };
+        word.copy_from_slice(&input[..8]);
+    }
+
+    // // This code is slower, despite being less branchy
+    //
+    // let n = num_with_continuation_bit(word);
+    // if n == 8 {
+    //     return unsigned_slow(input);
+    // }
+    //
+    // let mask = 0x7f7f7f7f7f7f7f7f;
+    // let mask = mask >> (7 * 8 - n * 8);
+    // let rest = &input[n as usize + 1..];
+
+    let (mask, rest) = match num_with_continuation_bit(word) {
+        0 => (0x000000000000007f, &input[1..]),
+        1 => (0x0000000000007f7f, &input[2..]),
+        2 => (0x00000000007f7f7f, &input[3..]),
+        3 => (0x000000007f7f7f7f, &input[4..]),
+        4 => (0x0000007f7f7f7f7f, &input[5..]),
+        5 => (0x00007f7f7f7f7f7f, &input[6..]),
+        6 => (0x007f7f7f7f7f7f7f, &input[7..]),
+        7 => (0x7f7f7f7f7f7f7f7f, &input[8..]),
+        _ => return unsigned_slow(input),
+    };
+
+
+    let value = unsafe { x86_64::_pext_u64(word, mask) };
+    Ok((value, rest))
+}
+
 /// Read an unsigned LEB128 number from the given `std::io::Read`able and
 /// return it or an error if reading failed.
-#[inline]
-pub fn unsigned(mut input: &[u8]) -> Result<(u64, &[u8]), Error> {
+#[inline(never)]
+fn unsigned_slow(mut input: &[u8]) -> Result<(u64, &[u8]), Error> {
     let mut result = 0;
     let mut shift = 0;
 
