@@ -14,7 +14,12 @@ repository = "https://github.com/gimli-rs/leb128"
 [dependencies]
 
 [dev-dependencies]
+criterion = "0.2"
 quickcheck = "0.7.1"
 
 [features]
 nightly = []
+
+[[bench]]
+name = "bench"
+harness = false
