@@ -44,8 +44,9 @@ assert_eq!(val, -12345);
 
 ## Read-Eval-Print-Loop for LEB128
 
-This crate comes with a `leb128-repl` program that you can use after `cargo
-install leb128` or by running `cargo run` in clone of this repository.
+This crate comes with a `leb128-repl` example program that you can use after
+`cargo install --examples leb128` or by running `cargo run --example
+leb128-repl` in clone of this repository.
 
 ```
 $ leb128-repl
